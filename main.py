@@ -263,11 +263,8 @@ def fetch_latest_verification_code(timeout_seconds=60, poll_interval=3, since_ti
                     match = re.search(pattern, body)
                     if match:
                         code = match.group(1)
-                        # 打印匹配上下文便于调试
-                        start = max(0, match.start() - 20)
-                        end = min(len(body), match.end() + 20)
-                        ctx = body[start:end].replace("\n", " ")
-                        print(f"[POP3] ✅ [{label}] {desc}: {_mask_code(code)} (上下文: ...{ctx}...)")
+                        # 验证码和邮件正文不写入公开日志
+                        print(f"[POP3] ✅ [{label}] {desc}: 已提取验证码")
                         return code
                 return None
 
@@ -278,12 +275,8 @@ def fetch_latest_verification_code(timeout_seconds=60, poll_interval=3, since_ti
             if code is not None:
                 return code, None
 
-            # 降级：打印正文前 500 字符供人工判断
-            print(f"[POP3] ⚠️ 未能自动提取验证码，纯文本前500字符:")
-            print(plain_body[:500])
-            if html_parts:
-                print(f"[POP3] HTML 前300字符:")
-                print(html_parts[0][:300])
+            # 不在公开日志中输出邮件正文
+            print("[POP3] ⚠️ 未能自动提取验证码，等待下一封邮件")
 
         except Exception as e:
             print(f"[POP3] 连接错误: {e}")
@@ -425,7 +418,7 @@ def main():
                     redirected = True
 
             current_url = page.url
-            print(f"[Step 2] 当前 URL: {current_url}")
+            print(f"[Step 2] 当前 URL: {current_url.split('?', 1)[0]}")
             save_page_state(page, "step3_after_login_click")
 
             # ── 检测 2FA ──
@@ -449,7 +442,7 @@ def main():
                         if code_input.is_visible():
                             code_input.fill(code, force=True)
                             code_filled = True
-                            print(f"[Step 2] 已填写验证码 (selector={selector}): {_mask_code(code)}")
+                            print(f"[Step 2] 已填写验证码 (selector={selector}): [已隐藏]")
                             break
                     except Exception:
                         continue
@@ -507,8 +500,8 @@ def main():
                     pass
 
                 # 也不在 /user → 可能登录异常
-                print(f"[Step 2] ⚠️ 登录后未跳转，当前: {current_url}")
-                results.append(f"[Step 2] 登录后未跳转到 /user，当前: {current_url}")
+                print(f"[Step 2] ⚠️ 登录后未跳转，当前: {current_url.split('?', 1)[0]}")
+                results.append(f"[Step 2] 登录后未跳转到 /user，当前: {current_url.split('?', 1)[0]}")
 
             current_url = page.url
 
@@ -516,8 +509,8 @@ def main():
                 print("[Step 2] ✅ 登录成功！")
                 results.append("[Step 2] 登录成功")
             elif "/2fa" not in current_url:
-                print(f"[Step 2] ⚠️ 登录后 URL: {current_url}，继续尝试...")
-                results.append(f"[Step 2] 登录后未跳转到 /user，当前: {current_url}")
+                print(f"[Step 2] ⚠️ 登录后 URL: {current_url.split('?', 1)[0]}，继续尝试...")
+                results.append(f"[Step 2] 登录后未跳转到 /user，当前: {current_url.split('?', 1)[0]}")
 
         # ── Step 3: 每日签到 ──
         print("\n[Step 3] 查找每日签到...")
